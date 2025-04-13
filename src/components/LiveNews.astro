@@ -1,0 +1,200 @@
+---
+import Parser from 'rss-parser';
+const parser = new Parser({ customFields: { item: ['media:content', 'media:thumbnail'] } });
+
+const feedUrls = [
+  'https://feeds.bbci.co.uk/news/world/rss.xml',
+  'https://www.theguardian.com/world/rss'
+];
+
+let allItems = [];
+
+for (const url of feedUrls) {
+  try {
+    const feed = await parser.parseURL(url);
+    const items = feed.items.slice(0, 6).map(item => ({
+      title: item.title,
+      link: item.link,
+      description: item.contentSnippet || item.content || '',
+      image: item.enclosure?.url || item['media:content']?.[0]?.$.url || item['media:thumbnail']?.[0]?.$.url || ''
+    }));
+    allItems.push(...items);
+  } catch (err) {
+    console.error(`Failed to fetch feed from ${url}:`, err);
+  }
+}
+
+allItems = allItems.slice(0, 6);
+---
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Current Affairs | What's the News</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        background-color: #f3f3ed;
+        color: #222;
+        margin: 0;
+        padding: 0;
+      }
+      .hero {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        padding: 4rem 2rem;
+        background-color: #f3f3ed;
+      }
+      .hero h1 {
+        font-size: 3.5rem;
+        margin: 0;
+      }
+      .hero p {
+        max-width: 600px;
+        font-size: 1.25rem;
+        color: #333;
+      }
+      main {
+        max-width: 1100px;
+        margin: auto;
+        padding: 2rem 1.5rem;
+      }
+      article {
+        background: #fff;
+        padding: 1.5rem;
+        border-radius: 6px;
+        box-shadow: 0 0 8px rgba(0,0,0,0.06);
+        margin-bottom: 1.5rem;
+        display: flex;
+        gap: 1rem;
+      }
+      article img {
+        width: 120px;
+        height: auto;
+        border-radius: 4px;
+        object-fit: cover;
+      }
+      article div {
+        flex: 1;
+      }
+      a {
+        text-decoration: none;
+        color: #004477;
+        font-weight: bold;
+      }
+      .chat-toggle {
+        display: block;
+        margin: 2rem auto;
+        text-align: center;
+        padding: 0.75rem 1.5rem;
+        background-color: #ddd;
+        color: #444;
+        border-radius: 5px;
+        font-weight: 500;
+        cursor: pointer;
+        max-width: fit-content;
+      }
+      #chatbox {
+        position: relative;
+        margin-top: 2rem;
+        max-height: 0;
+        overflow: hidden;
+        opacity: 0;
+        transition: max-height 0.6s ease, opacity 0.6s ease;
+      }
+      #chatbox.open {
+        max-height: 600px;
+        opacity: 1;
+      }
+      #chatbox .close-chat {
+        position: absolute;
+        top: -30px;
+        right: 0;
+        font-size: 0.9rem;
+        color: #666;
+        background: none;
+        border: none;
+        cursor: pointer;
+      }
+      iframe {
+        width: 100%;
+        height: 500px;
+        border: none;
+        border-radius: 6px;
+        box-shadow: 0 0 12px rgba(0,0,0,0.04);
+      }
+    </style>
+    <script>
+      let hideTimer;
+      function toggleChat() {
+        const chat = document.getElementById('chatbox');
+        chat.classList.toggle('open');
+        if (chat.classList.contains('open')) {
+          chat.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          resetAutoHide();
+        } else {
+          clearTimeout(hideTimer);
+        }
+      }
+
+      function closeChat() {
+        const chat = document.getElementById('chatbox');
+        chat.classList.remove('open');
+        clearTimeout(hideTimer);
+      }
+
+      function resetAutoHide() {
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(() => {
+          closeChat();
+        }, 5 * 60 * 1000);
+      }
+
+      document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+          window.location.href = '/';
+        }
+      });
+    </script>
+  </head>
+  <body>
+<section style="background: white; padding: 3rem 2rem; text-align: center; max-width: 900px; margin: 4rem auto 2rem; border-radius: 8px; box-shadow: 0 0 8px rgba(0,0,0,0.05);">
+  <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">Current Affairs</h1>
+  <p style="font-size: 1.15rem; color: #555; max-width: 700px; margin: 0 auto;">
+    Curated coverage of the stories that matter. Reporting the moments shaping lives and systems — in a space designed for those who need pause.
+  </p>
+</section>
+    <main>
+      {allItems.length === 0 ? (
+        <p style="font-style: italic; color: #777; text-align: center;">Loading news...</p>
+      ) : (
+        <div>
+          {allItems.map(item => (
+            <article>
+              {item.image && (
+                <img src={item.image} alt={item.title} />
+              )}
+              <div>
+                <a href={item.link} target="_blank" rel="noopener">{item.title}</a>
+                <p style="margin-top: 0.5rem; line-height: 1.5; color: #444;">{item.description.slice(0, 500)}...</p>
+                <a href={item.link} target="_blank" rel="noopener" style="font-size: 0.95rem; color: #666; text-decoration: underline;">Read more →</a>
+              </div>
+            </article>
+          ))}
+
+          <a class="chat-toggle" onclick="toggleChat()">Need help?</a>
+
+          <div id="chatbox">
+            <button class="close-chat" onclick="closeChat()">× close</button>
+            <iframe 
+              src="https://your-chatbot-url.com" 
+              sandbox="allow-scripts allow-same-origin">
+            </iframe>
+          </div>
+        </div>
+      )}
+    </main>
+  </body>
+</html>
